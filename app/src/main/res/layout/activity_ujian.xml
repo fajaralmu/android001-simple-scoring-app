@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+    <ScrollView
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/background_light"
+        android:fadeScrollbars="false"
+        android:orientation="vertical"
+        android:scrollbars="vertical"
+        tools:context=".UjianActivity">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/textView_title2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="5dp"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:text="Mulai Ujian"
+                android:textColor="@android:color/holo_blue_dark"
+                android:textSize="35sp"
+                android:textStyle="normal|bold"
+                tools:layout_editor_absoluteX="16dp"
+                tools:layout_editor_absoluteY="0dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/button2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/tombol_bunder"
+                    android:onClick="goToListUjianSiswa"
+                    android:text="Kembali"
+                    android:textColor="@android:color/background_light" />
+
+                <TextView
+                    android:id="@+id/textView_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:gravity="center_horizontal"
+                    android:text="Nama Siswa"
+                    android:textSize="30sp"
+                    android:textStyle="bold"
+                    tools:layout_editor_absoluteX="16dp"
+                    tools:layout_editor_absoluteY="0dp" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/editText_q1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 1"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_q3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 3"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_q2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 2"
+                    android:inputType="number" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:gravity="center_vertical|center_horizontal"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/editText_q6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 6"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_q5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 5"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_q4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Soal 4"
+                    android:inputType="number" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/editText_hadir"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Kehadiran"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_hafalan"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Hafalan"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_total"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/tombol_bunder"
+                    android:editable="false"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Nilai"
+                    android:inputType="textPersonName"
+                    android:textColor="@android:color/background_light" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/editText_tajwid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Tajwid"
+                    android:inputType="number" />
+
+                <EditText
+                    android:id="@+id/editText_keterangan"
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_stroke"
+                    android:ems="10"
+                    android:gravity="center_vertical|center_horizontal"
+                    android:hint="Keterangan"
+                    android:inputType="textMultiLine" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginLeft="20dp"
+                android:layout_marginRight="20dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_simpan_ujian"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/tombol_bunder"
+                    android:onClick="updateUjian"
+                    android:text="UPDATE"
+                    android:textColor="@android:color/background_light" />
+
+                <Button
+                    android:id="@+id/button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/tombol_bunder"
+                    android:onClick="resetField"
+                    android:text="Reset"
+                    android:textColor="@android:color/background_light" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textView_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="TextView" />
+
+        </LinearLayout>
+    </ScrollView>
