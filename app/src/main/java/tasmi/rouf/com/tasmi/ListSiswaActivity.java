@@ -7,11 +7,18 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.os.StrictMode;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.DividerItemDecoration;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -30,40 +37,48 @@ import android.widget.TableLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import tasmi.rouf.com.json.MyJSON;
 import tasmi.rouf.com.model.Guru;
 import tasmi.rouf.com.model.Kelas;
 import tasmi.rouf.com.model.Siswa;
+import tasmi.rouf.com.server.SiswaServiceV2;
+import tasmi.rouf.com.util.AlertBoy;
 import tasmi.rouf.com.util.Constant;
+import tasmi.rouf.com.util.ItemRecyclerAdapter;
+import tasmi.rouf.com.util.ItemRecyclerAdapterListSiswa;
+import tasmi.rouf.com.util.MyLoadingDialog;
 
-public class ListSiswaActivity extends AppCompatActivity {
-    private static ListView list_student;
+public class ListSiswaActivity extends Activity {
+    private static RecyclerView list_student;
     private static TextView listSiswaText;
     private static EditText cari_input_nama;
     private static Spinner cari_kelas_spn;
+
+    private MyLoadingDialog dialog_loading;
+    private Dialog dialog_edit_siswa;
 
     private static TableLayout tabel;
 
     private static CheckBox all_kelas, all_nama;
 
-    private String cari_nama="all", cari_kelas="all";
+    private String cari_nama = "", cari_kelas =Constant.DEFAULT_KELAS;
 
     List<Kelas> listKelas = new ArrayList<>();
 
     Integer kelas_terpilih_edit_dialog = 0;
 
-    SiswaService siswaService;
+    SiswaServiceV2 siswaServiceV2;
     List<Siswa> listSiswa = new ArrayList<>();
-    List<Siswa> listSiswaFilter = new ArrayList<>();
 
-    private String kategori_pilih = "nama";
-    String[] kategori = {"nama", "kelas"};
-
-
-    boolean iBound = false;
+    private String session_guru = "";
+    private SharedPreferences sharedpreferences;
+    private boolean load_more = false, load_all = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,23 +89,21 @@ public class ListSiswaActivity extends AppCompatActivity {
 
         StrictMode.setThreadPolicy(policy);
 
-        list_student = findViewById(R.id.list_siswa_view);
+        list_student = findViewById(R.id.recycleViewListSiswa);
         listSiswaText = findViewById(R.id.textViewSiswa);
 
         cari_kelas_spn = findViewById(R.id.spinner_kelas);
         cari_input_nama = findViewById(R.id.editText_cari_nama);
+        dialog_loading = AlertBoy.loadingMulai(this);
 
-//        all_kelas = findViewById(R.id.checkBox_all_kelas);
-//        all_nama = findViewById(R.id.checkBox_all_nama);
-//
-//        all_kelas.setChecked(true);
-//        all_nama.setChecked(true);
+        dialog_loading.setCancelable(false);
 
-        Intent intent = new Intent(this, SiswaService.class);
-        Log.i(Constant.tag, "HELLO");
-        Log.i(Constant.tag, "Binding service: " + Boolean.toString(bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)));
+        siswaServiceV2 = new SiswaServiceV2(this);
 
         Navigate.cekLogin(this);
+        sharedpreferences = getSharedPreferences(Constant.PREF_AKUN, MODE_PRIVATE);
+        session_guru = sharedpreferences.getString("session", null);
+        getData(true);
     }
 
     public void init_spinner_kelas() {
@@ -102,7 +115,7 @@ public class ListSiswaActivity extends AppCompatActivity {
 
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                Kelas k  = (Kelas) parent.getItemAtPosition(position);
+                Kelas k = (Kelas) parent.getItemAtPosition(position);
                 cari_kelas = k.getId().toString();
                 Toast.makeText(ListSiswaActivity.this, "Selected: " + k.getId(), Toast.LENGTH_SHORT).show();
 
@@ -115,27 +128,32 @@ public class ListSiswaActivity extends AppCompatActivity {
         });
     }
 
+    public void showDialogTambahSiswa(View v){
+        dialogTambahSiswa();
+    }
+
     public void dialogTambahSiswa() {
         showDetailDialog(new Siswa(), true);
     }
 
-    public void goHome(View v){
+    @Override
+    public void onBackPressed() {
         Navigate.navigate(this, HomeActivity.class);
     }
 
     public void showDetailDialog(Siswa siswa, boolean siswaBaru) {
-        final Dialog dialog = new Dialog(this);
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.dialog_detail_siswa_layout);
-        TextView judul = dialog.findViewById(R.id.textView_judul_dialog_detail_siswa);
-        final EditText id_view = dialog.findViewById(R.id.textView_id_siswa_dialog);
-        final EditText nama_view = dialog.findViewById(R.id.textView_nama_siswa_dialog);
-        final EditText lahir_view = dialog.findViewById(R.id.textView_lahir_siswa_dialog);
-        final Spinner kelas_spinner = dialog.findViewById(R.id.spinner_kelas);
+        dialog_edit_siswa = new Dialog(this);
+        dialog_edit_siswa.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog_edit_siswa.setContentView(R.layout.dialog_detail_siswa_layout);
+        TextView judul = dialog_edit_siswa.findViewById(R.id.textView_judul_dialog_detail_siswa);
+        final EditText id_view = dialog_edit_siswa.findViewById(R.id.textView_id_siswa_dialog);
+        final EditText nama_view = dialog_edit_siswa.findViewById(R.id.textView_nama_siswa_dialog);
+        final EditText lahir_view = dialog_edit_siswa.findViewById(R.id.textView_lahir_siswa_dialog);
+        final Spinner kelas_spinner = dialog_edit_siswa.findViewById(R.id.spinner_kelas);
 
-        ImageButton btn_ok = dialog.findViewById(R.id.button_ok_detail_siswa);
-        ImageButton btn_update = dialog.findViewById(R.id.btn_update);
-        ImageButton btn_delete = dialog.findViewById(R.id.btn_delete_full);
+        ImageButton btn_ok = dialog_edit_siswa.findViewById(R.id.button_ok_detail_siswa);
+        ImageButton btn_update = dialog_edit_siswa.findViewById(R.id.btn_update);
+        ImageButton btn_delete = dialog_edit_siswa.findViewById(R.id.btn_delete_full);
 
         kelas_spinner.setSelection(1);
         ArrayAdapter<Kelas> adapter = new ArrayAdapter<Kelas>(ListSiswaActivity.this,
@@ -148,7 +166,7 @@ public class ListSiswaActivity extends AppCompatActivity {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Kelas k = (Kelas) parent.getItemAtPosition(position);
-               kelas_terpilih_edit_dialog = k.getId();
+                kelas_terpilih_edit_dialog = k.getId();
             }
 
             @Override
@@ -178,13 +196,14 @@ public class ListSiswaActivity extends AppCompatActivity {
                     Integer id = Integer.parseInt(id_view.getText().toString());
 
                     Siswa siswa = new Siswa(id, nama, lahir, kelas);
-                    if (siswaService.editSiswa(siswa).equals(1)) {
-                        Log.i(Constant.tag, "Updated Successfully");
-                        listSiswa(v);
-                        dialog.dismiss();
-                        Toast.makeText(ListSiswaActivity.this, "Updated Successfully", Toast.LENGTH_SHORT);
-
+                    Method mEdit = null;
+                    try {
+                        mEdit = siswaServiceV2.getClass().getMethod("editSiswa",Siswa.class, String.class);
+                        updateProcess(siswa,mEdit);
+                    } catch (NoSuchMethodException e) {
+                        e.printStackTrace();
                     }
+
                 }
             });
 
@@ -198,7 +217,7 @@ public class ListSiswaActivity extends AppCompatActivity {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
                                     Integer id = Integer.parseInt(id_view.getText().toString());
-                                    if (siswaService.hapusSiswaFull(id).equals(1)) {
+                                    if (siswaServiceV2.hapusSiswaFull(id).equals(1)) {
                                         Log.i(Constant.tag, "Deleted Successfully");
                                         listSiswa(v);
                                         Toast.makeText(ListSiswaActivity.this, "Deleted Successfully", Toast.LENGTH_SHORT);
@@ -238,11 +257,12 @@ public class ListSiswaActivity extends AppCompatActivity {
                     Integer kelas = kelas_terpilih_edit_dialog;
 
                     Siswa siswa = new Siswa(0, nama, lahir, kelas);
-                    if (siswaService.tambahSiswa(siswa).equals(SUCCESS)) {
-                        Log.i(Constant.tag, "Added Successfully");
-                        listSiswa(v);
-                        dialog.dismiss();
-                        Toast.makeText(ListSiswaActivity.this, "Added Successfully", Toast.LENGTH_SHORT);
+                    Method mAdd = null;
+                    try {
+                        mAdd = siswaServiceV2.getClass().getMethod("tambahSiswa",Siswa.class, String.class);
+                        updateProcess(siswa,mAdd);
+                    } catch (NoSuchMethodException e) {
+                        e.printStackTrace();
                     }
                 }
             });
@@ -252,34 +272,53 @@ public class ListSiswaActivity extends AppCompatActivity {
         btn_ok.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dialog.dismiss();
+                dialog_edit_siswa.dismiss();
             }
         });
-        dialog.show();
+        dialog_edit_siswa.show();
     }
 
-    public void listSiswaUpdate(View v) {
-        listSiswaFilter.clear();
+    public void cariSiswa(View v) {
+        load_all = false;
+        load_more = false;
         cari_nama = cari_input_nama.getText().toString();
-        for(Siswa s:listSiswa){
-            if(!s.getKelas().toString().equals(cari_kelas)){
-                    continue;
-            }
-            if(!cari_nama.equals("")){
-                if(!s.getNama().toLowerCase().contains(cari_nama.toLowerCase()))
-                    continue;
-            }
+        getData(false);
 
-            listSiswaFilter.add(s);
-        }
-        populate_listView(listSiswaFilter);
     }
 
-    public void allSiswa() {
-        listSiswa.clear();
-        String respons = siswaService.listSiswa();
+    public void loadMore(View v) {
+        load_more = true;
+        load_all=false;
+        cari_nama = cari_input_nama.getText().toString();
+        getData(false);
 
+    }
 
+    public void loadAll(View v) {
+        load_more = false;
+        load_all=true;
+        cari_nama = cari_input_nama.getText().toString();
+        getData(false);
+
+    }
+
+    public boolean listSiswa() {
+        if(!load_more) {
+            listSiswa.clear();
+
+        }
+        String filter_nama = cari_nama;
+        String filter_kelas = cari_kelas;
+        int offset=listSiswa.size();
+        int limit =10;
+        if(load_all){
+            offset=0;
+            limit=0;
+        }
+        String respons=siswaServiceV2.siswaByKelasAndName(filter_nama, filter_kelas,session_guru, offset,limit);
+        if(respons == null || respons.equals("[]") || respons.equals("")){
+            return false;
+        }
         System.out.println(respons);
         List<String> objs = MyJSON.getObjFromArray(respons);
         List<List<String[]>> list_obj = new ArrayList<>();
@@ -294,58 +333,97 @@ public class ListSiswaActivity extends AppCompatActivity {
             Siswa siswa = (Siswa) MyJSON.getObj(new Siswa(), obj);
             System.out.println(siswa);
             list_obj.add(obj);
-            Kelas k = Kelas.get_NamakelasFromList(siswa.getKelas(),listKelas);
+            Kelas k = Kelas.get_NamakelasFromList(siswa.getKelas(), listKelas);
             siswa.set_Kelas(k);
             listSiswa.add(siswa);
         }
-    //    populate_listView(listSiswa);
+        return true;
+
     }
 
     public void listSiswa(View v) {
-        getData();
+        cari_nama = "";
+        getData(true);
     }
 
-    public void getData(){
-        allKelas();
-        allSiswa();
-        init_spinner_kelas();
+    public void getData(final boolean initkelas) {
+        dialog_loading.show();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if(initkelas) {
+                            allKelas();
+                            cari_kelas = Constant.DEFAULT_KELAS;
+                        }
+                       final boolean responseNotNull = listSiswa();
+
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if(!responseNotNull){
+                                                Toast.makeText(ListSiswaActivity.this, "No result", Toast.LENGTH_SHORT).show();
+                                            }
+                                            populate_listView(listSiswa);
+                                            if(initkelas) {
+                                                init_spinner_kelas();
+                                            }
+                                            dialog_loading.dismiss();
+
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
+    }
+
+    public void updateProcess(final Siswa siswaToEdit, final Method m) {
+        dialog_loading.show();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        Object editProcess = null;
+                        try {
+                            editProcess = m.invoke(siswaServiceV2, siswaToEdit, session_guru);
+                        } catch (IllegalAccessException e) {
+                            e.printStackTrace();
+                        } catch (InvocationTargetException e) {
+                            e.printStackTrace();
+                        }
+                        if (((Integer) editProcess).equals(1)) {
+                            listSiswa();
+                        }
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            populate_listView(listSiswa);
+                                            dialog_loading.dismiss();
+                                            dialog_edit_siswa.dismiss();
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
     }
 
     public void populate_listView(List<Siswa> listSiswa) {
-        ArrayAdapter<Siswa> adapter = new ArrayAdapter<Siswa>(this, R.layout.list_siswa_layout, listSiswa);
-        list_student.setAdapter(adapter);
-        list_student.setOnItemClickListener(
-                new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        Siswa siswa = (Siswa) list_student.getItemAtPosition(position);
-                        // Log.i(Constant.tag, siswa.toFullString());
-                        showDetailDialog(siswa, false);
-                    }
-                }
-        );
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        list_student.setLayoutManager(layoutManager);
+        list_student.setAdapter(new ItemRecyclerAdapterListSiswa(listSiswa,this));
+        list_student.addItemDecoration(
+                new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
     }
-
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            SiswaService.LocalBinder binder = (SiswaService.LocalBinder) service;
-            siswaService = binder.getService();
-            Log.i(Constant.tag, siswaService.toString());
-            siswaService = new SiswaService(getApplicationContext());
-            getData();
-            iBound = true;
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            iBound = false;
-        }
-    };
 
     public void allKelas() {
         listKelas.clear();
-        String respons = siswaService.listKelas();
+        String respons = siswaServiceV2.listKelas();
 
         System.out.println(respons);
         List<String> objs = MyJSON.getObjFromArray(respons);
@@ -363,25 +441,4 @@ public class ListSiswaActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-
-        MenuInflater menuInflater = getMenuInflater();
-        menuInflater.inflate(R.menu.menu_option_list_siswa, menu);
-
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.tambah_siswa:
-                Toast.makeText(getApplicationContext(), "Tambah Siswa", Toast.LENGTH_SHORT).show();
-                dialogTambahSiswa();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-
-    }
 }

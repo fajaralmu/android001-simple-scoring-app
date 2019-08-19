@@ -5,6 +5,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.StrictMode;
@@ -25,29 +26,35 @@ import tasmi.rouf.com.json.MyJSON;
 import tasmi.rouf.com.model.Siswa;
 import tasmi.rouf.com.model.Soal;
 import tasmi.rouf.com.model.Ujian;
+import tasmi.rouf.com.server.SiswaServiceV2;
+import tasmi.rouf.com.util.AlertBoy;
 import tasmi.rouf.com.util.Constant;
+import tasmi.rouf.com.util.MyLoadingDialog;
 
-public class UjianActivity extends Activity{//} AppCompatActivity {
+public class UjianActivity extends Activity {//} AppCompatActivity {
 
-    SiswaService siswaService;
-    boolean iBound = false;
+    SiswaServiceV2 siswaServiceV2;
+    private static MyLoadingDialog dialog_loading;
 
     private static Integer id_siswa = null;
 
     private Siswa siswa = new Siswa();
     private Ujian ujian = new Ujian();
     private List<Soal> soal = new ArrayList<Soal>();
-    private Integer[] id_soal = {0,0,0,0,0,0,0};
+    private Integer[] id_soal = {0, 0, 0, 0, 0, 0, 0};
     Boolean sudahUjian = false;
 
     private static TextView title, status;
     private static EditText totalNilai_txt;
-    private static EditText[] kolom_soal= new EditText[10];
+    private static EditText[] kolom_soal = new EditText[10];
+
+    private SharedPreferences sharedpreferences;
+    private String session_guru = "";
 
     //soal
 
 
-    public UjianActivity(){
+    public UjianActivity() {
         siswa = new Siswa();
     }
 
@@ -59,11 +66,11 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
 
-        Intent intent = new Intent(this, SiswaService.class);
-        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        siswaServiceV2 = new SiswaServiceV2(this);
+        dialog_loading = AlertBoy.loadingMulai(this);
 
         id_siswa = getIntent().getExtras().getInt("id_siswa");
-        Log.i(Constant.tag,"onCreate, id"+id_siswa);
+        Log.i(Constant.tag, "onCreate, id" + id_siswa);
         siswa.setId(id_siswa);
 
         title = findViewById(R.id.textView_title);
@@ -82,16 +89,42 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
         totalNilai_txt = findViewById(R.id.editText_total);
 
         Navigate.cekLogin(this);
+        sharedpreferences = getSharedPreferences(Constant.PREF_AKUN, MODE_PRIVATE);
+        session_guru = sharedpreferences.getString("session", null);
+
+
+        getData();
 
     }
 
-    private void cekUjian(){
-        ujian.setIdsiswa(siswa.getId());
-        Log.i(Constant.tag,"ID"+siswa.getId()+","+ujian.getIdsiswa());
-        String resp_ujian = siswaService.ujianByIdSiswa(ujian);
-        if(resp_ujian.equals("null")){
+    private void lengkapiNilaiSoal(){
+        for (int i = 0; i < soal.size(); i++) {
+            id_soal[i] = soal.get(i).getId();
+            final String n_str = soal.get(i).getNilai().toString();
+            kolom_soal[i].setText(n_str);
+        }
+        final String tajwid_str = ujian.getTajwid().toString();
+        final String keterangan = ujian.getKeterangan();
+        final String kehadiran = ujian.getKehadiran().toString();
+        final String hafalan = ujian.getHafalan().toString();
+        final String total = ujian.getTotal().toString();
+        kolom_soal[6].setText(tajwid_str);
+        kolom_soal[7].setText(hafalan);
+        kolom_soal[8].setText(kehadiran);
+        kolom_soal[9].setText(keterangan);
+        Double total_dbl = nilaiTotal(ujian.getHafalan(), ujian.getKehadiran(), soal);
+        final String nilai_total_txt = total_dbl.toString();
+        //  ujian.setTotal(total_dbl.intValue());
+        totalNilai_txt.setText(nilai_total_txt);
+        status.setText("sudah ujian: " + sudahUjian.toString() + " " + ujian.getId());
+    }
 
-        }else{
+    private void cekUjian(String resp_ujian) {
+        ujian.setIdsiswa(siswa.getId());
+        Log.i(Constant.tag, "ID" + siswa.getId() + "," + ujian.getIdsiswa());
+        if (resp_ujian.equals("null")) {
+
+        } else {
             sudahUjian = true;
             List<String[]> obj = new ArrayList<String[]>();
             for (String x : MyJSON.extractObj(resp_ujian)) {
@@ -100,39 +133,42 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
             }
             ujian = (Ujian) MyJSON.getObj(new Ujian(), obj);
             listSoal();
-            for(int i=0;i<soal.size();i++){
-                id_soal[i]=soal.get(i).getId();
-                final String n_str = soal.get(i).getNilai().toString();
-                kolom_soal[i].setText(n_str);
-            }
-            final String tajwid_str = ujian.getTajwid().toString();
-            final String keterangan = ujian.getKeterangan();
-            final String kehadiran = ujian.getKehadiran().toString();
-            final String hafalan = ujian.getHafalan().toString();
-            final String total = ujian.getTotal().toString();
-            kolom_soal[6].setText(tajwid_str);
-            kolom_soal[7].setText(hafalan);
-            kolom_soal[8].setText(kehadiran);
-            kolom_soal[9].setText(keterangan);
-            Double  total_dbl = nilaiTotal(ujian.getHafalan(), ujian.getKehadiran(), soal);
-            final String nilai_total_txt = total_dbl.toString();
-          //  ujian.setTotal(total_dbl.intValue());
-            totalNilai_txt.setText(nilai_total_txt);
-
-
         }
 
-        status.setText("sudah ujian: "+sudahUjian.toString()+" "+ ujian.getId());
+
     }
 
-    private void listSoal(){
+    public void listSoal() {
+        dialog_loading.show();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        prosesListSoal();
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            dialog_loading.dismiss();
+                                            lengkapiNilaiSoal();
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
+    }
+
+
+    private void prosesListSoal() {
         soal.clear();
-        String respons = siswaService.soalByIdUjian(ujian.getId());
+        String respons = siswaServiceV2.soalByIdUjian(ujian.getId());
 
         System.out.println(respons);
         List<String> objs = MyJSON.getObjFromArray(respons);
         List<List<String[]>> list_obj = new ArrayList<>();
-        String toDisplay="";
+        String toDisplay = "";
         for (String str_obj : objs) {
             List<String[]> obj = new ArrayList<String[]>();
             for (String x : MyJSON.extractObj(str_obj)) {
@@ -143,23 +179,23 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
             Soal s = (Soal) MyJSON.getObj(new Soal(), obj);
 
             list_obj.add(obj);
-            toDisplay+=siswa.toString();
-            Log.i(Constant.tag,"SOAL "+s);
+            toDisplay += siswa.toString();
+            Log.i(Constant.tag, "SOAL " + s);
             soal.add(s);
         }
     }
 
-    public void goToListUjianSiswa(View v){
-        Intent i = new Intent(this, ListUjianSiswaActivity.class);
-        startActivity(i);
+    @Override
+    public void onBackPressed() {
+        Navigate.navigate(this, ListUjianSiswaActivity.class);
     }
 
-    private boolean setSiswa(){
-        Log.i(Constant.tag,"ID SISWA:"+id_siswa);
+    private boolean setSiswa() {
+        Log.i(Constant.tag, "ID SISWA:" + id_siswa);
         try {
             if (id_siswa.equals(null))
                 return false;
-            String s = siswaService.siswaById(siswa);
+            String s = siswaServiceV2.siswaById(siswa);
             Log.i(Constant.tag, s);
             if (s.equals(""))
                 return false;
@@ -171,34 +207,58 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
             }
             siswa = (Siswa) MyJSON.getObj(new Siswa(), obj);
             siswa.setId(id_siswa);
-            title.setText(siswa.toString());
+
             return true;
-        }catch(Exception e){
+        } catch (Exception e) {
             Log.i(Constant.tag, e.toString());
             return false;
         }
     }
 
-    public void resetField(View v){
+    public void resetField(View v) {
         final String empty = "0";
 
-        for(int i=0;i<kolom_soal.length;i++){
+        for (int i = 0; i < kolom_soal.length; i++) {
             kolom_soal[i].setText(empty);
         }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void updateUjian(View v){
+            dialog_loading.show();
+            Thread t = new Thread(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            prosesUpdateUjian();
+                            synchronized (this) {
+                                runOnUiThread(
+                                        new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                dialog_loading.dismiss();
+                                                totalNilai_txt.setText(nilai_total_txt);
+                                            }
+                                        });
+                            }
+                        }
+                    });
+            t.start();
+
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void prosesUpdateUjian() {
         soal.clear();
-        for(int i=0;i<kolom_soal.length-4;i++){
+        for (int i = 0; i < kolom_soal.length - 4; i++) {
             String nilai_text = kolom_soal[i].getText().toString();
-            Integer nilai  = 0;
-            if(!nilai_text.equals(""))
+            Integer nilai = 0;
+            if (!nilai_text.equals(""))
                 nilai = Integer.parseInt(nilai_text);
 
-            Log.i(Constant.tag,"nilai: "+ nilai);
+            Log.i(Constant.tag, "nilai: " + nilai);
 
-            Soal s = new Soal(id_soal[i]==0?0:id_soal[i],ujian.getId(),nilai);
+            Soal s = new Soal(id_soal[i] == 0 ? 0 : id_soal[i], ujian.getId(), nilai);
             soal.add(s);
         }
 
@@ -210,77 +270,88 @@ public class UjianActivity extends Activity{//} AppCompatActivity {
         int nilai_tajwid_int = 0;
         int nilai_hafalan_int = 0;
         int nilai_hadir_int = 0;
-        if(!nilai_tajwid_text.equals(""))
+        if (!nilai_tajwid_text.equals(""))
             nilai_tajwid_int = Integer.parseInt(nilai_tajwid_text);
-        if(!nilai_hadir.equals(""))
+        if (!nilai_hadir.equals(""))
             nilai_hadir_int = Integer.parseInt(nilai_hadir);
-        if(!nilai_hafalan.equals(""))
+        if (!nilai_hafalan.equals(""))
             nilai_hafalan_int = Integer.parseInt(nilai_hafalan);
         ujian.setTajwid(nilai_tajwid_int);
         ujian.setHafalan(nilai_hafalan_int);
         ujian.setKehadiran(nilai_hadir_int);
         ujian.setKeterangan(keterangan);
 
-        Double  total_dbl = nilaiTotal(nilai_hafalan_int, nilai_hadir_int, soal);
+        Double total_dbl = nilaiTotal(nilai_hafalan_int, nilai_hadir_int, soal);
         final String nilai_total_txt = total_dbl.toString();
         ujian.setTotal(total_dbl.intValue());
 
-        if(sudahUjian){
-            Integer updateUjian = siswaService.editUjian(ujian);
-            if(updateUjian.equals(1))
-                for(Soal s:soal){
-                    siswaService.editSoal(s);
+        if (sudahUjian) {
+            Integer updateUjian = siswaServiceV2.editUjian(ujian, session_guru);
+            if (updateUjian.equals(1))
+                for (Soal s : soal) {
+                    siswaServiceV2.editSoal(s);
                 }
-            Toast.makeText(this, "oke update ujian", Toast.LENGTH_SHORT).show();
-        }else{
+        } else {
             Random r = new Random();
-            int id_ujian_new = 298* r.nextInt(40000000)/200;
+            int id_ujian_new = 298 * r.nextInt(40000000) / 200;
             id_ujian_new = Math.abs(id_ujian_new);
             ujian.setId(id_ujian_new);
-            Integer addUjian = siswaService.tambahUjian(ujian);
-            if(addUjian.equals(1)){
-                Toast.makeText(this, "oke menambah ujian", Toast.LENGTH_SHORT).show();
-                for(Soal s:soal){
+            Integer addUjian = siswaServiceV2.tambahUjian(ujian, session_guru);
+            if (addUjian.equals(1)) {
+                for (Soal s : soal) {
                     s.setIdujian(id_ujian_new);
-                    siswaService.tambahSoal(s);
+                    siswaServiceV2.tambahSoal(s);
                 }
-            }else{
-                Toast.makeText(this, "gagal menambah ujian", Toast.LENGTH_SHORT).show();
-            }
+            } else { }
         }
-        totalNilai_txt.setText(nilai_total_txt);
+        this.nilai_total_txt = nilai_total_txt;
+
     }
 
-    private Double nilaiTotal(double hafalan, double hadir, List<Soal> ls ){
-        Double total = hadir+hafalan;
+    private String nilai_total_txt = "0";
+
+    private Double nilaiTotal(double hafalan, double hadir, List<Soal> ls) {
+        Double total = hadir + hafalan;
         Double totalSoal = 0d;
-        for(Soal s:ls){
-            totalSoal+=s.getNilai();
+        for (Soal s : ls) {
+            totalSoal += s.getNilai();
         }
-        Log.i(Constant.tag,"totalSoal:"+ totalSoal + " hadir dan hafalan: "+total);
-        total = total  + (totalSoal/6) * (0.6);
+        Log.i(Constant.tag, "totalSoal:" + totalSoal + " hadir dan hafalan: " + total);
+        total = total + (totalSoal / 6) * (0.6);
 
         return total;
     }
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            Log.i(Constant.tag,"service connected");
-            SiswaService.LocalBinder binder = (SiswaService.LocalBinder) service;
-            siswaService = binder.getService();
-            Log.i(Constant.tag, siswaService.toString());
-            siswaService = new SiswaService(getApplicationContext());
+    String resp_ujian = "null";
+    boolean siswaOk = false;
 
-            iBound = true;
-            if(setSiswa())
-                cekUjian();
+    private void getData() {
 
-        }
+        dialog_loading.show();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        siswaOk = setSiswa();
+                        if (siswaOk) {
+                            resp_ujian = siswaServiceV2.ujianByIdSiswa(siswa.getId());
+                        }
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if (siswaOk) {
+                                                cekUjian(resp_ujian);
+                                            }
+                                            title.setText(siswa.toString());
+                                            dialog_loading.dismiss();
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
+    }
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            iBound = false;
-        }
-    };
 }

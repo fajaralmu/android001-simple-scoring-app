@@ -3,6 +3,7 @@ package tasmi.rouf.com.model;
 public class Guru {
     private Integer id;
     private String nama, namapengguna,katasandi;
+    private String session="";
 
     public Guru(){
 
@@ -13,6 +14,14 @@ public class Guru {
         this.nama = nama;
         this.namapengguna = namapengguna;
         this.katasandi = katasandi;
+    }
+
+    public void set_session(String session){
+        this.session = session;
+    }
+
+    public String get_session(){
+        return session;
     }
 
     public Integer getId() {

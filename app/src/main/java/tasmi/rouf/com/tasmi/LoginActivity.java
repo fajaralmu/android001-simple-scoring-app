@@ -16,9 +16,15 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import tasmi.rouf.com.json.MyJSON;
 import tasmi.rouf.com.model.Guru;
+import tasmi.rouf.com.server.SiswaServiceV2;
 import tasmi.rouf.com.util.AlertBoy;
 import tasmi.rouf.com.util.Constant;
+import tasmi.rouf.com.util.MyLoadingDialog;
 
 
 /**
@@ -26,8 +32,9 @@ import tasmi.rouf.com.util.Constant;
  */
 public class LoginActivity extends Activity {
 
-    SiswaService siswaService;
+    SiswaServiceV2 siswaServiceV2;
 
+    private MyLoadingDialog dialog_loading;
     private EditText mUsername;
     private EditText mPasswordView;
     private View mProgressView;
@@ -47,13 +54,15 @@ public class LoginActivity extends Activity {
 
         StrictMode.setThreadPolicy(policy);
         // Set up the login form.
+        dialog_loading = AlertBoy.loadingMulai(this);
         mUsername = findViewById(R.id.email);
         mPasswordView = (EditText) findViewById(R.id.password);
-
+        siswaServiceV2 = new SiswaServiceV2(this);
         sharedpreferences = getSharedPreferences(Constant.PREF_AKUN, Context.MODE_PRIVATE);
-
-        Intent intent = new Intent(this, SiswaService.class);
-        Boolean.toString(bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE));
+        String session_guru =  sharedpreferences.getString("session",null);
+        if(session_guru!=null){
+            prosesValidasi(session_guru);
+        }
 
     }
 
@@ -61,44 +70,105 @@ public class LoginActivity extends Activity {
         final String namapengguna = mUsername.getText().toString();
         final String katasandi = mPasswordView.getText().toString();
 
-        Guru g = new Guru();
-        g.setNamapengguna(namapengguna);
-        g.setKatasandi(katasandi);
-        int success = 1;
-        boolean login = siswaService.guruMasuk(g).equals(success);
-        if (login) {
-            AlertBoy.YesAlert(LoginActivity.this, "Login", "Login oke");
-            SharedPreferences.Editor editor = sharedpreferences.edit();
+        preLogin(namapengguna, katasandi);
+    }
 
-            editor.putString("username", g.getNamapengguna());
-            editor.putString("password", g.getKatasandi());
-
-            editor.commit();
-
-            Intent i = new Intent(this, HomeActivity.class);
-            startActivity(i);
-        } else {
-            AlertBoy.YesAlert(LoginActivity.this, "Login", "Login gagal");
+    private boolean validateSession(String session_guru) {
+        try {
+            if (session_guru.equals(null))
+                return false;
+            String s = siswaServiceV2.guruBySession(session_guru);
+            Log.i(Constant.tag, s);
+            if (s.equals(null) || s.equals(""))
+                return false;
+            List<String[]> obj = new ArrayList<String[]>();
+            List<String> objs = MyJSON.extractObj(s);
+            for (String x : objs) {
+                String[] prop = MyJSON.propVal(x);
+                obj.add(prop);
+            }
+            Guru guru = (Guru) MyJSON.getObj(new Guru(), obj);
+            prosesLogin(guru);
+            return true;
+        } catch (Exception e) {
+            Log.i(Constant.tag, e.toString());
+            return false;
         }
     }
 
+    private void preLogin(String namapengguna, String katasandi){
+        Guru g = new Guru();
+        g.setNamapengguna(namapengguna);
+        g.setKatasandi(katasandi);
+        prosesLogin(g);
+    }
 
-    private ServiceConnection serviceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            SiswaService.LocalBinder binder = (SiswaService.LocalBinder) service;
-            siswaService = binder.getService();
-            Log.i(Constant.tag, siswaService.toString());
-            siswaService = new SiswaService(getApplicationContext());
+    private void prosesLogin(final Guru g) {
+        dialog_loading.show();
+        final Context ctx = getApplication();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        final String responseLogin = siswaServiceV2.guruMasuk(g);
+                        final boolean login = !responseLogin.equals(null) && !responseLogin.equals("");
 
-            iBound = true;
-        }
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            dialog_loading.dismiss();
+                                            String[] fullResponse = responseLogin.split("\\~");
 
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            iBound = true;
-        }
-    };
+                                            if (login && fullResponse.length == 2) {
+                                                g.set_session(fullResponse[1]);
+                                                g.setId(Integer.parseInt(fullResponse[0]));
+                                                //AlertBoy.YesAlert(LoginActivity.this, "Login", "Login oke");
+                                                SharedPreferences.Editor editor = sharedpreferences.edit();
+                                                editor.putInt("id", g.getId());
+                                                editor.putString("session", g.get_session());
+                                                editor.commit();
+                                                Intent i = new Intent(ctx, HomeActivity.class);
+                                                startActivity(i);
+                                            } else {
+                                                AlertBoy.YesAlert(LoginActivity.this, "Login", "Login gagal");
+                                            }
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
+    }
+
+    @Override
+    public void onBackPressed() {
+        Intent i = new Intent(this, LaunchActivity.class);
+        startActivity(i);
+    }
+
+    private void prosesValidasi(final String session_guru) {
+        dialog_loading.show();
+        Thread t = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                       final boolean sessionValid =  validateSession(session_guru);
+                        synchronized (this) {
+                            runOnUiThread(
+                                    new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if(!sessionValid)
+                                                dialog_loading.dismiss();
+                                        }
+                                    });
+                        }
+                    }
+                });
+        t.start();
+    }
 
 
 }

@@ -59,26 +59,11 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/list_siswa_recycler"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="0dp"
         android:orientation="horizontal">
-
-        <ImageButton
-            android:id="@+id/button_show_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="5dp"
-            android:layout_marginTop="1dp"
-            android:layout_weight="1"
-            android:background="@drawable/tombol_bunder"
-            android:onClick="goHome"
-            android:src="?attr/homeAsUpIndicator"
-            android:textColor="@android:color/background_light"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.152"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textViewSiswa" />
 
         <ImageButton
             android:id="@+id/button_show_list3"
@@ -104,20 +89,63 @@
             android:layout_weight="1"
             android:background="@drawable/tombol_bunder"
             android:gravity="center_horizontal"
-            android:onClick="listSiswaUpdate"
+            android:onClick="cariSiswa"
             android:padding="0dp"
             android:scaleType="fitCenter"
             android:src="@drawable/search_icon" />
     </LinearLayout>
 
-    <ListView
-        android:id="@+id/list_siswa_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:baselineAligned="false"
-        android:padding="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="452dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/recycleView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="10dp">
+
+            </android.support.v7.widget.RecyclerView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/button7"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/holo_blue_light"
+                    android:onClick="loadMore"
+                    android:text="Load more"
+                    android:textColor="@android:color/background_light" />
+
+                <Button
+                    android:id="@+id/button8"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginRight="20dp"
+                    android:layout_weight="1"
+                    android:background="@android:color/holo_blue_light"
+                    android:onClick="loadAll"
+                    android:text="Load ALL"
+                    android:textColor="@android:color/background_light" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
 
 </LinearLayout>

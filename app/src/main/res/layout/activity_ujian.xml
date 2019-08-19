@@ -37,17 +37,6 @@
                 android:layout_height="match_parent"
                 android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/button2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_margin="10dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/tombol_bunder"
-                    android:onClick="goToListUjianSiswa"
-                    android:text="Kembali"
-                    android:textColor="@android:color/background_light" />
-
                 <TextView
                     android:id="@+id/textView_title"
                     android:layout_width="wrap_content"

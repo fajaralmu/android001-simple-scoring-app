@@ -18,7 +18,8 @@ public class SiswaServer {
         HttpURLConnection connection = null;
         try {
             //Create connection
-            Log.i(Constant.tag,"Begin post");
+            Log.i(Constant.tag,"Begin post "+targetURL);
+            Log.i(Constant.tag,"params: "+urlParameters);
 
             URL url = new URL(targetURL);
             connection = (HttpURLConnection) url.openConnection();

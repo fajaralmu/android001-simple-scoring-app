@@ -1,8 +1,12 @@
 package tasmi.rouf.com.util;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.support.v7.app.AlertDialog;
+import android.view.Window;
+
+import tasmi.rouf.com.tasmi.R;
 
 public class AlertBoy {
     public AlertBoy(){
@@ -23,4 +27,14 @@ public class AlertBoy {
         alert.setTitle(title);
         alert.show();
     }
+
+    public static MyLoadingDialog loadingMulai(Context ctx) {
+        MyLoadingDialog dialog_loading_final = new MyLoadingDialog(ctx);
+        dialog_loading_final.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog_loading_final.setContentView(R.layout.loading_layout);
+        dialog_loading_final.setCancelable(false);
+        return dialog_loading_final;
+
+    }
+
 }
